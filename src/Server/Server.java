@@ -16,8 +16,8 @@ public class Server {
 	private final String BUSY = "busy";
 	private final String OK = "ok";
 	
-	private String successorFileLocation;
-	private String dateFileLocation;
+	private String successorFileLocation = "/home/redvox/eclipse_workspace/vsp1/";
+	private String dataFileLocation = "/home/redvox/eclipse_workspace/vsp1/";
 
 	public static void main(String[] args) {
 		Server server = new Server();
@@ -54,6 +54,7 @@ public class Server {
 	}
 
 	private class SocketThread extends Thread {
+
 		private Socket clientSocket;
 		private int timeout = 10000;
 
@@ -120,5 +121,13 @@ public class Server {
 			}
 
 		}
+	}
+	
+	public String getSuccessorFileLocation() {
+		return successorFileLocation;
+	}
+	
+	public String getDataFileLocation() {
+		return dataFileLocation;
 	}
 }

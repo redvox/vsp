@@ -4,7 +4,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,8 +27,63 @@ public class Agent extends Thread {
 		this.homeadress = homeadres;
 	}
 
+	/**
+	 * On arrival, the agend has to check its current loacation.
+	 * If he has no access to the serves interface list he return home.
+	 * If the server he is on its not his actual target, he will attempt to travel to his target.
+	 * If he is on his target he must verify if he is on his homeserver and display the collecting data.
+	 * If the server is a normal target he will try to read the succsessor and data an procede as normally. 
+	 */
 	public void checkLocation() {
-
+		List<String> iplist = getIPAddressList();
+		// no interface access
+		if(!iplist.isEmpty()){
+			// actual target
+			if(iplist.contains(successorlist.get(successorlist.size()-1))){
+				//on home server
+				if(homeadress.equals(successorlist.size()-1)){
+					
+					
+				} else {
+					// procede as normally
+				}
+			} else {
+				// travel weiter
+			}
+		} else {
+			// return home
+			successorlist.add(homeadress);
+		}
+	}
+	
+	public static List<String> getIPAddressList() {
+		List<String> iplist = new ArrayList<String>();
+		
+		Enumeration nicList;
+		NetworkInterface nic;
+		Enumeration nicAddrList;
+		InetAddress nicAddr;
+		try {
+			nicList = NetworkInterface.getNetworkInterfaces();
+			while (nicList.hasMoreElements()) {
+				nic = (NetworkInterface) nicList.nextElement();
+				if (!nic.isLoopback() && nic.isUp()) {
+					nicAddrList = nic.getInetAddresses();
+					while (nicAddrList.hasMoreElements()) {
+						nicAddr = (InetAddress) nicAddrList.nextElement();
+						try {
+							// test if it's IPv4, if doesn't throws Exception.
+							Inet4Address nicAddrIPv4 = (Inet4Address) nicAddr;
+							iplist.add(nicAddr.getHostAddress());
+						} catch (Exception e) {
+						}
+					}
+				}
+			}
+		} catch (SocketException e1) {
+			System.out.println("SocketException handled in Networking.getIPAddress!.");
+		}
+		return iplist;
 	}
 
 	/**
@@ -40,7 +100,7 @@ public class Agent extends Thread {
 		ArrayList<String> ips = new ArrayList<String>();
 
 		try {
-			reader = new BufferedReader(new FileReader("/home/redvox/eclipse_workspace/vsp1/t.txt"));
+			reader = new BufferedReader(new FileReader(server.getSuccessorFileLocation()+"t.txt"));
 			zeile = reader.readLine();
 
 			// Get every entry in the file.
