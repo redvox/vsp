@@ -4,61 +4,98 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.Socket;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+import MobileAgent_Server.MobileAgent;
 import Server.Server;
 
-public class Agent extends Thread {
+public class Agent extends Thread implements Serializable {
 
-	List<String> successorlist = new ArrayList<String>();
-	Map<String, String> datalist = new HashMap<String, String>();
-	String homeadress;
+	private static final long serialVersionUID = 1L;
+
+	List<InetAddress> successorlist = new ArrayList<InetAddress>();
+	List<InetAddress> unreachable = new ArrayList<InetAddress>();
+	List<InetAddress> visited = new ArrayList<InetAddress>();
+	int id;
+	int initTime;
+	int port;
+	Map<String, String[]> collectedData = new HashMap<String, String[]>();
+	Inet4Address homeadress;
 	Server server;
+	
+	byte[] agentbinarcode;
 
-	public Agent(String homeadres) {
+	public Agent(Inet4Address homeadres) {
 		this.homeadress = homeadres;
 	}
 
+	public void run() {
+		checkLocation();
+	}
+
 	/**
-	 * On arrival, the agend has to check its current loacation.
-	 * If he has no access to the serves interface list he return home.
-	 * If the server he is on its not his actual target, he will attempt to travel to his target.
-	 * If he is on his target he must verify if he is on his homeserver and display the collecting data.
-	 * If the server is a normal target he will try to read the succsessor and data an procede as normally. 
+	 * On arrival, the agent has to check its current loacation. If he has no
+	 * access to the serves interface list he return home. If the server he is
+	 * on its not his actual target, he will attempt to travel to his target. If
+	 * he is on his target he must verify if he is on his homeserver and display
+	 * the collecting data. If the server is a normal target he will try to read
+	 * the succsessor and data an procede as normally.
 	 */
 	public void checkLocation() {
 		List<String> iplist = getIPAddressList();
-		// no interface access
-		if(!iplist.isEmpty()){
-			// actual target
-			if(iplist.contains(successorlist.get(successorlist.size()-1))){
-				//on home server
-				if(homeadress.equals(successorlist.size()-1)){
-					
-					
+
+		if (successorlist.isEmpty()) {
+			// the agent is on his home server he has to read the succsessor and
+			// travel.
+			readSuccessor();
+			doSendRequest();
+		} else {
+			if (iplist.contains(successorlist.get(successorlist.size() - 1))) {
+				// actual target
+
+				if (homeadress.equals(successorlist.size() - 1)) {
+					// the agent is returned to his homeserver
+					printData();
+
 				} else {
 					// procede as normally
+
+					InetAddress location = successorlist.get(successorlist.size() - 1);
+					successorlist.remove(successorlist.size() - 1);
+					visited.add(location);
+
+					readSuccessor();
+					readData();
+					checkSuccessor();
+					doSendRequest();
 				}
 			} else {
-				// travel weiter
+				// the agent is not on his actual target, he tries to travel to
+				// his target
+				checkSuccessor();
+				doSendRequest();
 			}
-		} else {
-			// return home
-			successorlist.add(homeadress);
 		}
 	}
-	
+
 	public static List<String> getIPAddressList() {
 		List<String> iplist = new ArrayList<String>();
-		
+
 		Enumeration nicList;
 		NetworkInterface nic;
 		Enumeration nicAddrList;
@@ -95,12 +132,12 @@ public class Agent extends Thread {
 	public void readSuccessor() {
 		BufferedReader reader;
 		String zeile = null;
-		boolean returnhome = false;
+		// boolean returnhome = false;
 
-		ArrayList<String> ips = new ArrayList<String>();
+		ArrayList<InetAddress> ips = new ArrayList<InetAddress>();
 
 		try {
-			reader = new BufferedReader(new FileReader(server.getSuccessorFileLocation()+"t.txt"));
+			reader = new BufferedReader(new FileReader(server.getSuccessorFileLocation() + "t.txt"));
 			zeile = reader.readLine();
 
 			// Get every entry in the file.
@@ -127,7 +164,11 @@ public class Agent extends Thread {
 							if (ip1 <= 255 && ip1 >= 0) {
 								if (ip2 <= 255 && ip2 >= 0) {
 									if (ip3 <= 255 && ip3 >= 0) {
-										ips.add(s);
+										try {
+											ips.add(InetAddress.getByName(s));
+										} catch (UnknownHostException e) {
+											// Ignore entry.
+										}
 									}
 								}
 							}
@@ -138,27 +179,143 @@ public class Agent extends Thread {
 				}
 			}
 
-			if (ips.isEmpty())
-				returnhome = true;
-
 		} catch (IOException e) {
-			returnhome = true;
-		}
-
-		if (returnhome && successorlist.isEmpty()) {
 			successorlist.add(homeadress);
 		}
+
+		successorlist.addAll(ips);
 	}
 
 	public void checkSuccessor() {
+		for (InetAddress u : unreachable) {
+			// the agent should check every host that was not reachable in the
+			// past and add it again if it is reachable.
+			try {
+				if (u.isReachable(2000)) {
+					unreachable.remove(u);
+					successorlist.add(u);
+				}
+			} catch (Exception e) {
+				unreachable.remove(u);
+			}
+		}
 
+		boolean keeptrying = true;
+		while (keeptrying) {
+			if (successorlist.isEmpty()) {
+				// if the agent has nowhere to go, return home.
+				successorlist.add(homeadress);
+			}
+
+			if (successorlist.get(successorlist.size() - 1).equals(homeadress)) {
+				// the target IS the home adress but the Server is not
+				// reachable. The Agent must(!) wait until it is reachable.
+				try {
+					if (successorlist.get(successorlist.size() - 1).isReachable(2000)) {
+						keeptrying = false;
+					} else {
+
+						try {
+							sleep(2000);
+						} catch (InterruptedException e1) {
+							e1.printStackTrace();
+							// interrupt();
+						}
+
+					}
+				} catch (Exception e) {
+					// ignore exceptions. the agend have to travel to the
+					// homeserver(!).
+
+					try {
+						sleep(2000);
+					} catch (InterruptedException e2) {
+						e2.printStackTrace();
+						// interrupt();
+					}
+
+				}
+			} else {
+				try {
+					if (successorlist.get(successorlist.size() - 1).isReachable(2000)) {
+						keeptrying = false;
+					} else {
+						unreachable.add(successorlist.get(successorlist.size() - 1));
+						successorlist.remove(successorlist.size() - 1);
+					}
+
+				} catch (Exception e) {
+					successorlist.remove(successorlist.size() - 1);
+				}
+			}
+		}
 	}
 
 	public void readData() {
+		try {
+			File collectableData = new File("./nimm_dies_mit");
+			if (collectableData.exists()) {
+				collectedData.put("" + InetAddress.getLocalHost().getHostName() + "; " + InetAddress.getLocalHost().getAddress(), collectableData.list());
+			} else {
+				collectedData.put("" + InetAddress.getLocalHost().getHostName() + "; " + InetAddress.getLocalHost().getAddress(), new String[] { "no data found" });
+			}
 
+		} catch (UnknownHostException ex) {
+			// Logger.getLogger(MobileAgent.class.getName()).log(Level.SEVERE,
+			// null, ex);
+		}
 	}
 
 	public void doSendRequest() {
+		// Connection
+		Socket toServer = null;
+		OutputStream outputS;
 
+		InetAddress target = successorlist.get(successorlist.size() - 1);
+
+		// Setup Connection
+		try {
+			toServer = new Socket(target, port);
+		} catch (Exception ex) {
+			
+		}
+
+		// send
+		try {
+
+			outputS = toServer.getOutputStream();
+
+			// Groeße des binaercodeMA
+			String sizeBinaercodeMA = agentbinarcode.length + ";";
+			outputS.write(sizeBinaercodeMA.getBytes());
+			outputS.flush();
+
+			// den binaercodeMA
+			outputS.write(agentbinarcode);
+			outputS.flush();
+
+			// sich selbst :)
+			ObjectOutputStream objectSERIALISIEREN = new ObjectOutputStream(toServer.getOutputStream());
+			objectSERIALISIEREN.writeObject(this);
+			objectSERIALISIEREN.flush();
+
+			// Streams schliessen
+			objectSERIALISIEREN.close();
+			outputS.close();
+			toServer.close();
+			
+		} catch (IOException ex) {
+//			Logger.getLogger(MobileAgent.class.getName()).log(Level.SEVERE, null, ex);
+		} catch (NullPointerException ex) {
+//			System.out.println("Agent hatte wohl Startprobleme ;)!");
+		}
+	}
+
+	public void printData() {
+
+	}
+	
+	public void p(String p){
+		System.out.println(p);
 	}
 }
