@@ -33,25 +33,25 @@ public class Server {
 
 	public static void main(String[] args) {
 
-		Agent a;
-		
-		try {
-			// extrahiere Binärcode der Klasse MobileAgent
-//			File mobileAgentDATEI = new File("./bin/Agent.class");
-			File mobileAgentDATEI = new File("/home/redvox/eclipse_workspace/vsp1/bin/Agent/Agent.class");
-			
-			byte[] binaercodeMA = new byte[(int) mobileAgentDATEI.length()];
-			FileInputStream fileIS = new FileInputStream(mobileAgentDATEI);
-			fileIS.read(binaercodeMA, 0, binaercodeMA.length);
-
-			fileIS.close();
-		
-			a = new Agent(InetAddress.getLocalHost(), binaercodeMA);
-			a.run();
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+//		Agent a;
+//		
+//		try {
+//			// extrahiere Binärcode der Klasse MobileAgent
+////			File mobileAgentDATEI = new File("./bin/Agent.class");
+//			File mobileAgentDATEI = new File("/home/redvox/eclipse_workspace/vsp1/Agent.class");
+//			
+//			byte[] binaercodeMA = new byte[(int) mobileAgentDATEI.length()];
+//			FileInputStream fileIS = new FileInputStream(mobileAgentDATEI);
+//			fileIS.read(binaercodeMA, 0, binaercodeMA.length);
+//
+//			fileIS.close();
+//		
+//			a = new Agent(InetAddress.getLocalHost(), binaercodeMA);
+//			a.run();
+//		} catch (Exception e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
 
 		Server server = new Server();
 		server.setMaxConnections(100);
