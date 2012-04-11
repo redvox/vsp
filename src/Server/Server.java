@@ -1,17 +1,23 @@
 package Server;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import Agent.Agent;
 
 public class Server {
 
@@ -26,6 +32,27 @@ public class Server {
 	private String dataFileLocation = "/home/redvox/eclipse_workspace/vsp1/";
 
 	public static void main(String[] args) {
+
+		Agent a;
+		
+		try {
+			// extrahiere Binärcode der Klasse MobileAgent
+//			File mobileAgentDATEI = new File("./bin/Agent.class");
+			File mobileAgentDATEI = new File("/home/redvox/eclipse_workspace/vsp1/bin/Agent/Agent.class");
+			
+			byte[] binaercodeMA = new byte[(int) mobileAgentDATEI.length()];
+			FileInputStream fileIS = new FileInputStream(mobileAgentDATEI);
+			fileIS.read(binaercodeMA, 0, binaercodeMA.length);
+
+			fileIS.close();
+		
+			a = new Agent(InetAddress.getLocalHost(), binaercodeMA);
+			a.run();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
 		Server server = new Server();
 		server.setMaxConnections(100);
 		server.listen(port);
@@ -107,7 +134,7 @@ public class Server {
 		objectDESERIALISIEREN.close();
 		inputS.close();
 		clientSocket.close();
-//		toAgent.close();
+		// toAgent.close();
 	}
 
 	private class SocketThread extends Thread {

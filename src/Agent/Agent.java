@@ -34,16 +34,19 @@ public class Agent extends Thread implements Serializable {
 	int initTime;
 	int port = 7777;
 	Map<String, String[]> collectedData = new HashMap<String, String[]>();
-	Inet4Address homeadress;
+	InetAddress homeadress;
 //	Server server;
 
 	byte[] agentbinarcode;
 
-	public Agent(Inet4Address homeadres) {
-		this.homeadress = homeadres;
+	public Agent(InetAddress inetAddress, byte[] agentbinarcode) {
+		this.homeadress = inetAddress;
+		this.agentbinarcode = agentbinarcode;
+		p("Agent wurde erstellt");
 	}
 
 	public void run() {
+		p("Agent wird ausgeführt");
 		checkLocation();
 	}
 
@@ -61,6 +64,7 @@ public class Agent extends Thread implements Serializable {
 		if (successorlist.isEmpty()) {
 			// the agent is on his home server he has to read the succsessor and
 			// travel.
+			p("Agent ist Zuhause und will verreisen");
 			readSuccessor();
 			doSendRequest();
 		} else {
@@ -129,6 +133,7 @@ public class Agent extends Thread implements Serializable {
 	 * as its next target.
 	 */
 	public void readSuccessor() {
+		p("Der Agent ließt die Nachfolger ein");
 		BufferedReader reader;
 		String zeile = null;
 		// boolean returnhome = false;
@@ -188,6 +193,7 @@ public class Agent extends Thread implements Serializable {
 	}
 
 	public void checkSuccessor() {
+		p("Der Agent überprüft die Nachfolger");
 		for (InetAddress u : unreachable) {
 			// the agent should check every host that was not reachable in the
 			// past and add it again if it is reachable.
@@ -247,12 +253,14 @@ public class Agent extends Thread implements Serializable {
 
 				} catch (Exception e) {
 					successorlist.remove(successorlist.size() - 1);
+					e.printStackTrace();
 				}
 			}
 		}
 	}
 
 	public void readData() {
+		p("Der Agent ließt die Daten");
 		try {
 			File collectableData = new File("./nimm_dies_mit");
 			if (collectableData.exists()) {
@@ -262,12 +270,12 @@ public class Agent extends Thread implements Serializable {
 			}
 
 		} catch (UnknownHostException ex) {
-			// Logger.getLogger(MobileAgent.class.getName()).log(Level.SEVERE,
-			// null, ex);
+			ex.printStackTrace();
 		}
 	}
 
 	public void doSendRequest() {
+		p("Der Agent versucht zu verreisen");
 		// Connection
 		Socket toServer = null;
 		OutputStream outputS;
@@ -315,16 +323,14 @@ public class Agent extends Thread implements Serializable {
 			outputS.close();
 			toServer.close();
 
-		} catch (IOException ex) {
-			// Logger.getLogger(MobileAgent.class.getName()).log(Level.SEVERE,
-			// null, ex);
-		} catch (NullPointerException ex) {
-			// System.out.println("Agent hatte wohl Startprobleme ;)!");
+		} catch (Exception ex) {
+			p("Verreisen hat nicht geklappt");
+			ex.printStackTrace();
 		}
 	}
 
 	public void printData() {
-
+		p("ich bin wieder da");
 	}
 
 	public void p(String p) {
