@@ -35,7 +35,7 @@ public class Agent extends Thread implements Serializable {
 	int port = 7777;
 	Map<String, String[]> collectedData = new HashMap<String, String[]>();
 	Inet4Address homeadress;
-	Server server;
+//	Server server;
 
 	byte[] agentbinarcode;
 
@@ -136,7 +136,8 @@ public class Agent extends Thread implements Serializable {
 		ArrayList<InetAddress> ips = new ArrayList<InetAddress>();
 
 		try {
-			reader = new BufferedReader(new FileReader(server.getSuccessorFileLocation() + "t.txt"));
+//			reader = new BufferedReader(new FileReader(server.getSuccessorFileLocation() + "t.txt"));
+			reader = new BufferedReader(new FileReader("./die_nachsten_ziele.txt"));
 			zeile = reader.readLine();
 
 			// Get every entry in the file.
