@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import MobileAgent_Server.MobileAgent;
 import Server.Server;
 
 public class Agent extends Thread implements Serializable {
@@ -33,11 +32,11 @@ public class Agent extends Thread implements Serializable {
 	List<InetAddress> visited = new ArrayList<InetAddress>();
 	int id;
 	int initTime;
-	int port;
+	int port = 7777;
 	Map<String, String[]> collectedData = new HashMap<String, String[]>();
 	Inet4Address homeadress;
 	Server server;
-	
+
 	byte[] agentbinarcode;
 
 	public Agent(Inet4Address homeadres) {
@@ -180,6 +179,7 @@ public class Agent extends Thread implements Serializable {
 			}
 
 		} catch (IOException e) {
+			// what if successorlist is not empty?
 			successorlist.add(homeadress);
 		}
 
@@ -274,10 +274,20 @@ public class Agent extends Thread implements Serializable {
 		InetAddress target = successorlist.get(successorlist.size() - 1);
 
 		// Setup Connection
-		try {
-			toServer = new Socket(target, port);
-		} catch (Exception ex) {
-			
+		boolean keeptrying = true;
+		while (keeptrying) {
+
+			try {
+				toServer = new Socket(target, port);
+				keeptrying = false;
+			} catch (Exception ex) {
+				try {
+					sleep(2000);
+				} catch (InterruptedException e2) {
+					e2.printStackTrace();
+					// interrupt();
+				}
+			}
 		}
 
 		// send
@@ -303,19 +313,20 @@ public class Agent extends Thread implements Serializable {
 			objectSERIALISIEREN.close();
 			outputS.close();
 			toServer.close();
-			
+
 		} catch (IOException ex) {
-//			Logger.getLogger(MobileAgent.class.getName()).log(Level.SEVERE, null, ex);
+			// Logger.getLogger(MobileAgent.class.getName()).log(Level.SEVERE,
+			// null, ex);
 		} catch (NullPointerException ex) {
-//			System.out.println("Agent hatte wohl Startprobleme ;)!");
+			// System.out.println("Agent hatte wohl Startprobleme ;)!");
 		}
 	}
 
 	public void printData() {
 
 	}
-	
-	public void p(String p){
+
+	public void p(String p) {
 		System.out.println(p);
 	}
 }
